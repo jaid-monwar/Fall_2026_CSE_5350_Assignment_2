@@ -2,6 +2,7 @@
 # (c) DL, UTA, 2009 - 2026
 
 import argparse
+import sys
 import time
 
 from cat2 import (
@@ -184,7 +185,7 @@ def trap(t):
 
 
 # ---------------------------------------------------------------------------
-# PART 2 TODO: Pipeline hazards and branch prediction
+# PART 2 TODO (ADDRESSED): Pipeline hazards and branch prediction
 # ---------------------------------------------------------------------------
 # Use the 5-stage IF/ID/EX/MEM/WB pipeline and NO-forwarding assumption stated
 # in cat2.py.  Students must implement:
@@ -210,13 +211,37 @@ def trap(t):
 # the 5-stage timing/model as required by the assignment.
 
 
-def run_vm(executable_file="a.out", dump_memory=False):
-    """Run CAT2 with Part 1 Store and counters; Parts 2-4 remain TODOs."""
+def finish_run(dump_memory, pipeline_result=None):
+    """Report final architectural state for either execution model."""
+    dumpstate(1)
+    if dump_memory:
+        dumpstate(2)
+    dumpstate(3)
+    result = {
+        "registers": list(reg),
+        "clock": clock,
+        "ic": ic,
+        "code_refs": numcoderefs,
+        "data_refs": numdatarefs,
+        "total_refs": numcoderefs + numdatarefs,
+    }
+    if pipeline_result is not None:
+        result["pipeline"] = pipeline_result
+    return result
+
+
+def run_vm(executable_file="a.out", dump_memory=False, pipeline=False,
+           trace=True, max_cycles=100000):
     global clock, ic
 
     reset_state()
     startexechere(0)                                  # start execution here if no "go"
     loadmem(executable_file)                          # load binary executable
+    if pipeline:
+        from pipeline import Pipeline
+        model = Pipeline(sys.modules[__name__], trace=trace)
+        pipeline_result = model.run(max_cycles=max_cycles)
+        return finish_run(dump_memory, pipeline_result)
     ip = 0                                            # start execution at codeseg location 0
 
     # while instruction is not halt
@@ -228,7 +253,7 @@ def run_vm(executable_file="a.out", dump_memory=False):
         reg2 = (ir >> reg2position) & regmask
         addr = ir & addmask
 
-        # PART 2 TODO: perform scoreboard/data-hazard and control-hazard work
+        # PART 2 TODO (ADDRESSED): perform scoreboard/data-hazard and control-hazard work
         #               at the appropriate points in the instruction flow.
 
         # - operand fetch
@@ -337,18 +362,7 @@ def run_vm(executable_file="a.out", dump_memory=False):
         if halt_requested:
             break
 
-    dumpstate(1)
-    if dump_memory:
-        dumpstate(2)
-    dumpstate(3)
-    return {
-        "registers": list(reg),
-        "clock": clock,
-        "ic": ic,
-        "code_refs": numcoderefs,
-        "data_refs": numdatarefs,
-        "total_refs": numcoderefs + numdatarefs,
-    }
+    return finish_run(dump_memory)
 
 
 def main():
@@ -357,8 +371,15 @@ def main():
                         help="assembler load image to execute (default: a.out)")
     parser.add_argument("--dump-memory", action="store_true",
                         help="print the complete memory image after execution")
+    parser.add_argument("--pipeline", action="store_true",
+                        help="use the Part 2 five-stage pipeline with hazards and prediction")
+    parser.add_argument("--no-trace", action="store_true",
+                        help="suppress pipeline cycle and event traces; keep final totals")
+    parser.add_argument("--max-cycles", type=int, default=100000,
+                        help="stop a pipeline run after this many cycles (default: 100000)")
     args = parser.parse_args()
-    run_vm(args.aout, dump_memory=args.dump_memory)
+    run_vm(args.aout, dump_memory=args.dump_memory, pipeline=args.pipeline,
+           trace=not args.no_trace, max_cycles=args.max_cycles)
 
 
 if __name__ == "__main__":

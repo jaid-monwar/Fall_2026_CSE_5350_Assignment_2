@@ -41,6 +41,10 @@ TRAPVAL = NUMREGS - 4                  # pass which trap/int
 PIPELINE_STAGES = ("IF", "ID", "EX", "MEM", "WB")
 FORWARDING = False
 
+REGISTER_WRITE_BEFORE_READ = True
+BRANCH_RESOLVE_STAGE = "EX"
+BRANCH_PREDICTOR_INITIAL = False
+
 # Part 3 timing constants come directly from the assignment handout.
 L1_LATENCY = 1
 L2_LATENCY = 4
